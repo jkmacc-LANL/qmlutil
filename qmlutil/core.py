@@ -110,7 +110,7 @@ def find_preferred_mag(mags, prefmaglist=[]):
     
     Note
     ----
-    Returns the preferred of the last of any given type, so multiple 'mw'
+    Returns the preferred or the last of any given type, so multiple 'mw'
     magnitudes will return the last one. If using reverse-sorted time
     magnitudes, (like the Database converter returns), need to pass in the
     reversed list, e.g. mags[::-1]
