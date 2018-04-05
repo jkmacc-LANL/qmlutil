@@ -23,7 +23,7 @@ def test_resourceurigenerator():
 
 
 def test_rfc3339():
-    dt = datetime.datetime(2015, 01, 02, 15, 04, 56, 789000)
+    dt = datetime.datetime(2015, 1, 2, 15, 4, 56, 789000)
     assert qml.rfc3339(dt) == "2015-01-02T15:04:56.789000Z"
 
 

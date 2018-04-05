@@ -50,7 +50,7 @@ def _ts(dt):
     """
     Return timestamp from datetime object
     """
-    return (dt-datetime.datetime(1970, 01, 01, 00, 00, 00)).total_seconds()
+    return (dt-datetime.datetime(1970, 1, 1, 0, 0, 0)).total_seconds()
 
 
 def rfc3339(dt):

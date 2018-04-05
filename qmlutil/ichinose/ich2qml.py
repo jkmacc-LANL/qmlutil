@@ -345,7 +345,7 @@ class IchinoseToQmlConverter(Root):
         evid = ichi.get('evid')
         orid = ichi.get('orid')
         dt = ichi.get('creation_time') or datetime.datetime.utcnow()
-        ustamp = int((dt-datetime.datetime(1970, 01, 01, 00, 00, 00)).total_seconds())
+        ustamp = int((dt-datetime.datetime(1970, 1, 1, 0, 0, 0)).total_seconds())
         vers = "{0}-{1}-{2}".format(evid, orid, ustamp)
         ichiID_rid = "{0}/{1}".format('ichinose', vers) # TODO: format/errcheck
         originID_rid = "{0}/{1}".format('origin', orid or uuid.uuid4())
