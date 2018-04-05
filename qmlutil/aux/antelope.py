@@ -246,14 +246,14 @@ class DatabaseConverter(object):
                 event['pick'] = _picks
                 try:
                     event['origin'][0]['arrival'] = _arrivals
-                except StandardError as e:
+                except Exception as e:
                     pass # log no origin
                 # TODO: more stuff -- derive from arrivals, like stationCount, etc
                 for o in event.get('origin', []):
                     try:
                         #o['quality'] = in case none yet???
                         o.get('quality', {}).update(qml.get_quality_from_arrival(o['arrival']))
-                    except StandardError as e:
+                    except Exception as e:
                         pass
         if focalMechanism:
             event['focalMechanism'] = self.get_mts(orid) + self.get_focalmechs(orid)
@@ -292,7 +292,7 @@ def get_nearest_place(dsn, coords):
         distances = [curs.execute.ex_eval("deg2km(distance({elat}, {elon}, lat, lon))".format(**coord)) for curs._record in range(curs.rowcount)]
         backazis = [curs.execute.ex_eval("azimuth(lat, lon, {elat}, {elon})".format(**coord)) for curs._record in range(curs.rowcount)]
         # Find the record with the min distance
-        ind = min(xrange(len(distances)), key=distances.__getitem__) 
+        ind = min(range(len(distances)), key=distances.__getitem__) 
         dist = distances[ind]
         backazi = backazis[ind]
         curs.scroll(int(ind), 'absolute')
@@ -335,7 +335,7 @@ class Db2Quakeml(object):
         """
         Init program with config from keyword args
         """
-        for k, v in kwargs.items():
+        for k, v in list(kwargs.items()):
             if k != "run":
                 setattr(self, k, v)
 

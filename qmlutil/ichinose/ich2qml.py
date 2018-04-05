@@ -71,6 +71,13 @@ class Parser(object):
         '''
         Working data is a list of lines from the file
         '''
+        try:
+            file = file
+        except NameError:
+            # Python 3
+            import io
+            file = io.IOBase
+
         if isinstance(email_text, file):
             email_text = email_text.read()
         self.line = email_text.split(endline)
@@ -106,7 +113,7 @@ class Parser(object):
         exp_str = line1.pop(-1)
         exp = int(exp_str.split('=')[1]) - 7 # N-m
         mt = dict(m.split('=') for m in line1)
-        for k, v in mt.items():
+        for k, v in list(mt.items()):
             mt[k] = float(v) * 10**exp
         return mt
 

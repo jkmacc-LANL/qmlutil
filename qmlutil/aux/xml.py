@@ -39,9 +39,16 @@ def validate(f, schema="BED"):
     rng = etree.RelaxNG(schema)
     
     # Load QuakeML
+    try:
+        file = file
+    except NameError:
+        # Python 3
+        import io
+        file = io.IOBase
+
     if isinstance(f, file):
         qml = etree.parse(f)
-    elif isinstance(f, unicode):
+    elif isinstance(f, str):
         qml = etree.fromstring(f.encode())
     elif isinstance(f, str):
         qml = etree.fromstring(f)
@@ -54,7 +61,7 @@ def main():
     import sys
     filename = sys.argv[1]
     ok = validate(filename)
-    print "{0} is valid?: {1}".format(filename, ok)
+    print("{0} is valid?: {1}".format(filename, ok))
     sys.exit(0)
 
 

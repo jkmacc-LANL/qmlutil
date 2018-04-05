@@ -98,7 +98,7 @@ def _dict(*args, **kwargs):
     Return a dict only if at least one value is not None
     """
     dict_ = Dict(*args, **kwargs)
-    if dict_.values() == [None] * len(dict_):
+    if list(dict_.values()) == [None] * len(dict_):
         return None
     return dict_
 
