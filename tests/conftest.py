@@ -3,7 +3,7 @@ import pytest
 import subprocess
 
 def pytest_report_header(config):
-    freeze = subprocess.check_output(['pip', 'freeze'])
+    freeze = subprocess.check_output(['pip', 'freeze'], universal_newlines=True)
     return "QuakeML test runner: qmlutil" + '\n' + freeze
 
 def pytest_addoption(parser):
