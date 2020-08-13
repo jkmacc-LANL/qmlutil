@@ -6,7 +6,8 @@ import os
 import json
 
 from qmlutil import ResourceURIGenerator, timestamp2isostr
-from qmlutil.css import CSSToQMLConverter as Converter, extract_etype
+from qmlutil.css import CSSToQMLConverter as Converter, extract_etype, \
+    extract_id
 
 
 def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
@@ -30,6 +31,12 @@ with open(os.path.join(PWD, 'data', 'assocarrival.json')) as f:
 with open(os.path.join(PWD, 'data', 'mt.json')) as f:
     CSS_MT = json.load(f)
 
+with open(os.path.join(PWD, 'data', 'fplane.json')) as f:
+    CSS_FM = json.load(f)
+
+with open(os.path.join(PWD, 'data', 'stamag.json')) as f:
+    CSS_STAMAGS = json.load(f)
+
 # make different from defaults
 my_authority_id = "local.test"
 my_agency_code = "QQ"
@@ -45,6 +52,22 @@ CONV = Converter(
     etype_map = my_etype_map,
     automatic_authors = ['orbassoc', 'orbmag'],
 )
+
+
+def test_extract_id():
+    """
+    Test ability to extract ID from publicID URI's
+    """
+    # These are all the forms used by the converter
+    #
+    # input, expected pairs
+    cases = [
+        (CONV._uri('table/12345'), '12345'),
+        (CONV._uri('table/123-THING-456-789'), '123-THING-456-789'),
+        (CONV._uri('table/123#latitude'), '123'),
+    ]
+    for case in cases: 
+        assert case[1] == extract_id(case[0])
 
 
 def test_map_origin():
@@ -158,6 +181,37 @@ def test_map_originmag():
     assert qmlm.get('@publicID') == "quakeml:local.test/origin/1371545#ml"
 
 
+def test_map_stamags():
+    """
+    Test converter for station magnitudes
+    """
+    cssm = CSS_STAMAGS[0]
+    qmlm = CONV.map_stamag2stationmagnitude(cssm)
+
+    assert '@publicID' in qmlm
+    assert 'originID' in qmlm
+    assert 'mag' in qmlm
+
+    assert qmlm.get('@publicID') == "quakeml:local.test/stamag/LKVW-ml-1371545-296149"
+    assert qmlm.get('originID') == "quakeml:local.test/origin/1371545"
+    
+    assert isclose(qmlm.get('mag', {}).get('value'), 3.13)
+    assert qmlm.get('type') == "ml"
+    
+    cinfo = qmlm.get('creationInfo', {})
+    assert cinfo.get('agencyID') == "QQ"
+    assert cinfo.get('author') == "dbml:tom"
+
+def test_map_stamag_contribs():
+    """
+    Test converter for station magnitude contributions
+    """
+    cssm = CSS_STAMAGS[0]
+    qmlm = CONV.map_stamag2magnitudecontrib(cssm)
+
+    assert qmlm.get('stationMagnitudeID') == "quakeml:local.test/stamag/LKVW-ml-1371545-296149"
+
+
 def test_map_arrival():
     """Test converter for arrivals"""
     cssa = CSS_PICKS[0]
@@ -220,13 +274,42 @@ def test_map_mt():
 
 def test_map_fplane():
     """Test converter for fplane focal mechanisms"""
-    pass
-    #cssf = CSS_FM
-    #qmlf = CONV.map_fplane2focalmech(cssf)
+    cssf = CSS_FM
+    qmlf = CONV.map_fplane2focalmech(cssf)
 
-    #assert '@publicID' in qmlf
+    assert '@publicID' in qmlf
+    
+    assert qmlf.get('@publicID') == "quakeml:local.test/fplane/4257"
+    assert qmlf.get('triggeringOriginID') == "quakeml:local.test/origin/1371240"
+    
+    nps = qmlf.get('nodalPlanes', {})
+    pas = qmlf.get('principalAxes', {})
+    
+    np1 = nps.get('nodalPlane1')
+    assert isclose(np1.get('strike', {}).get('value'), 320.5) 
+    assert isclose(np1.get('dip', {}).get('value'), 56.6) 
+    assert isclose(np1.get('rake', {}).get('value'), -118.5) 
+    np2 = nps.get('nodalPlane2')
+    assert isclose(np2.get('strike', {}).get('value'), 185.1) 
+    assert isclose(np2.get('dip', {}).get('value'), 42.8) 
+    assert isclose(np2.get('rake', {}).get('value'), -54.1) 
 
-    # TODO: check values
+    t = pas.get('tAxis', {})
+    assert isclose(t.get('azimuth', {}).get('value'), 70.4) 
+    assert isclose(t.get('plunge', {}).get('value'), 7.4) 
+    assert isclose(t.get('length', {}).get('value'), 0) 
+    p = pas.get('pAxis', {})
+    assert isclose(p.get('azimuth', {}).get('value'), 176.8) 
+    assert isclose(p.get('plunge', {}).get('value'), 65.2) 
+    assert isclose(p.get('length', {}).get('value'), 0) 
+
+    cinfo = qmlf.get('creationInfo', {})
+    assert cinfo.get('agencyID') == "QQ"
+    assert cinfo.get('author') == "HASHpy:mcassar"
+    
+    assert qmlf.get('evaluationMode') == "manual"
+    assert qmlf.get('evaluationStatus') == "reviewed"
+
 
 
 

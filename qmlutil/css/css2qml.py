@@ -153,7 +153,9 @@ def _get_NE_on_ellipse(A, B, strike):
 
 
 def extract_etype(origin):
-    """Return a CSS3.0 etype flag stored in an origin"""
+    """
+    Return a CSS3.0 etype flag stored in an origin
+    """
     if 'css:etype' in origin:
         return origin['css:etype']
     else:
@@ -163,7 +165,25 @@ def extract_etype(origin):
                 if comm.get('@id','').endswith('etype'):
                     return comm.get('text')
 
-            
+
+def extract_id(uri):
+    """
+    Extract unique ID from URI following the convention in this module, which
+    is:
+    scheme:authority-id/resource-id#local-id
+
+    where:
+    resource-id = relation/unique-key#field-indicators
+
+    using the CSS schema, so relation will usually be the CSS table name, and
+    the unique key will either be a unique integer id or a primary key made of
+    other fields, or a UUID (which represents an integer).
+    """
+    # NOTE: works if no slash in primary key - sep SHOULD be dash
+    # i.e. origin/1234-345-123454 to match UUID syntax
+    return uri.split('/')[-1].split('#')[0]
+
+
 class CSSToQMLConverter(Root):
     """
     Converter to QuakeML schema from CSS3.0 schema
@@ -331,6 +351,11 @@ class CSSToQMLConverter(Root):
     def map_stamag2stationmagnitude(self, db):
         """
         Map stamag record to StationMagnitude
+
+        JOIN
+        ====
+        stamag -> arrival -> wfmeas (TODO: clarify/fix)
+        [also optional outer snetsta schanloc on 'sta' like picks]
         """
         originID_rid = "{0}/{1}".format('origin', db.get('orid') or uuid.uuid4())
         stamagID_rid = "{0}/{1}-{2}-{3}-{4}".format(
@@ -340,6 +365,20 @@ class CSSToQMLConverter(Root):
             db.get('orid') or uuid.uuid4(),
             db.get('magid') or uuid.uuid4(),
         )
+        
+        # Create wavform ref, generic if no arrival-wfmeas join
+        def_net = self.agency[:2].upper()
+        css_sta = db.get('sta')
+        css_chan = db.get('chan', 'AML') or 'AML'
+        arrival_time = db.get('time', 0) or 0
+        wfID_rid = "{0}/{1}-{2}-{3}".format(
+            'wfdisc', 
+            css_sta,
+            css_chan,
+            int(arrival_time * 10**6),
+        )
+        # TODO: move to stamag2pick or stamag2amplitude
+        pickID_rid = "{0}/{1}".format('arrival', db.get('arid') or uuid.uuid4())
         
         stationmagnitude = Dict([
             ('@publicID', self._uri(stamagID_rid)),
@@ -357,8 +396,42 @@ class CSSToQMLConverter(Root):
                 ]),
             ),
             ('originID', self._uri(originID_rid)),
+            ('waveformID', Dict([
+                ('@stationCode', db.get('fsta') or css_sta), 
+                ('@channelCode', db.get('fchan') or css_chan),
+                ('@networkCode', db.get('snet') or def_net),
+                ('@locationCode', db.get('loc') or ""),
+                ('#text', self._uri(wfID_rid, schema="smi")),  #'resourceURI' in schema
+                ])
+            ),
         ])
         return stationmagnitude
+    
+    def map_stamag2magnitudecontrib(self, db):
+        """
+        Map stamag record to StationMagnitudeContribution
+        """
+        stamagID_rid = "{0}/{1}-{2}-{3}-{4}".format(
+            'stamag',
+            db.get('sta'),
+            db.get('magtype'),
+            db.get('orid') or uuid.uuid4(),
+            db.get('magid') or uuid.uuid4(),
+        )
+        
+        # 'residual' and 'weight' not in CSS3.0 stamag
+        stamagcontrib = Dict([
+            ('stationMagnitudeID', self._uri(stamagID_rid)),
+        ])
+        return stamagcontrib
+    
+    def map_stamag2stamag_stamagcontrib(self, db):
+        """
+        Return both StationMagnitude and StationMagnitudeContribution
+        """
+        stamag = self.map_stamag2stationmagnitude(db)
+        stamagcontrib = self.map_stamag2magnitudecontrib(db)
+        return (stamag, stamagcontrib)
 
     def map_netmag2magnitude(self, db):
         """
@@ -689,11 +762,13 @@ class CSSToQMLConverter(Root):
             ('tAxis', Dict([
                 ('azimuth', Dict(value = db.get('taxazm'))),
                 ('plunge', Dict(value = db.get('taxplg'))),
+                ('length', Dict(value = 0)),
                 ])
             ),
             ('pAxis', Dict([
                 ('azimuth', Dict(value = db.get('paxazm'))),
                 ('plunge', Dict(value = db.get('paxplg'))),
+                ('length', Dict(value = 0)),
                 ])
             ),
         ])
@@ -860,6 +935,13 @@ class CSSToQMLConverter(Root):
         """
         pick_arr_pairs = [self.map_assocarrival2pickarrival(row) for row in records]
         return map(list, zip(*pick_arr_pairs))
+    
+    def convert_magnitudes(self, records):
+        """
+        Station Magnitudes (Mags + Contributions) converter
+        """
+        sm_cb_pairs = [self.map_stamag2stamag_stamagcontrib(r) for r in records]
+        return map(list, zip(*sm_cb_pairs))
 
     def convert_focalmechs(self, records, schema='fplane'):
         """
